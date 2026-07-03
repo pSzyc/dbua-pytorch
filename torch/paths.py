@@ -1,7 +1,35 @@
+"""
+Time-of-flight (ToF) along a straight path through a speed-of-sound map.
+
+Given a speed-of-sound map ``c`` defined on a grid, this computes the acoustic
+travel time along the straight ray from ``(x0, z0)`` to ``(x1, z1)``:
+
+1. Convert the speed-of-sound map to a slowness map, ``s = 1 / c``.
+2. Sample ``npts`` points along the ray. At each point, interpolate the slowness
+   bilinearly from the four neighbouring grid vertices.
+3. Integrate slowness over the path (mean slowness x path length) to get the ToF.
+
+Paths are then accepted or rejected by two geometric conditions. Writing the
+lateral offset as ``dx = |x1 - x0|`` and the depth as ``dz = |z1 - z0|``:
+
+F-number condition
+    ``2 * fnum * dx <= dz``. The f-number is depth / aperture, so this keeps only
+    paths that lie inside the receive cone of the given f-number, i.e. whose
+    aperture angle is narrow enough for the sample depth. Steep, shallow-angle
+    paths (large dx relative to dz) fall outside the cone and are rejected.
+
+Minimum-aperture condition
+    ``(dz < Dmin * fnum) and (dx < Dmin / 2)``. Very close to the transducer the
+    f-number condition would reject almost everything, so a fixed minimum aperture
+    ``Dmin`` (default 3 mm) is always allowed regardless of f-number.
+
+A path is valid if it satisfies *either* condition. Invalid paths are flagged
+with a sentinel ToF so they can be masked / interpolated away downstream.
+"""
+
 #from jax import vmap, jit
 #import jax.numpy as jnp
 import pytorch as torch
-import numpy as np
 from functools import partial
 
 
