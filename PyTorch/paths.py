@@ -27,9 +27,7 @@ A path is valid if it satisfies *either* condition. Invalid paths are flagged
 with a sentinel ToF so they can be masked / interpolated away downstream.
 """
 
-#from jax import vmap, jit
-#import jax.numpy as jnp
-import pytorch as torch
+import torch
 from functools import partial
 
 
@@ -52,7 +50,6 @@ def time_of_flight(x0, z0, x1, z1, xc, zc, c, fnum, npts, Dmin=3e-3):
     # Find the path along the path curve, modeled as a straight ray
     # parameterized by t. We will put t in the innermost dimension.
     t_all = torch.arange(1, npts + 1, dtype=c.dtype, device=c.device) / npts
-    nx, nz = s.shape
 
     # Calculate slowness map
     s = 1 / c
@@ -68,17 +65,18 @@ def time_of_flight(x0, z0, x1, z1, xc, zc, c, fnum, npts, Dmin=3e-3):
         zit = torch.clamp((zt - zc[0]) / dzc, 0, s.shape[1] - 1)
         xi0 = torch.floor(xit)
         zi0 = torch.floor(zit)
-
         xi1 = xi0 + 1
         zi1 = zi0 + 1
-        xi1 = xi1.long().clamp(0, nx - 1)
-        zi1 = zi1.long().clamp(0, nz - 1)
-
+        # Integer indices for gather; upper corners MUST be clamped (torch errors on OOB)
+        xi0l = xi0.long().clamp(0, s.shape[0] - 1)
+        xi1l = xi1.long().clamp(0, s.shape[0] - 1)
+        zi0l = zi0.long().clamp(0, s.shape[1] - 1)
+        zi1l = zi1.long().clamp(0, s.shape[1] - 1)
         # Interpolate slowness at (xt, zt)
-        s00 = s[xi0.astype("int32"), zi0.astype("int32")]
-        s10 = s[xi1.astype("int32"), zi0.astype("int32")]
-        s01 = s[xi0.astype("int32"), zi1.astype("int32")]
-        s11 = s[xi1.astype("int32"), zi1.astype("int32")]
+        s00 = s[xi0l, zi0l]
+        s10 = s[xi1l, zi0l]
+        s01 = s[xi0l, zi1l]
+        s11 = s[xi1l, zi1l]
         w00 = (xi1 - xit) * (zi1 - zit)
         w10 = (xit - xi0) * (zi1 - zit)
         w01 = (xi1 - xit) * (zit - zi0)

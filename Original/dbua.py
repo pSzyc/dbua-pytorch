@@ -2,15 +2,15 @@ from pathlib import Path
 import numpy as np
 import jax.numpy as jnp
 from jax import jit
-from das import das
-from paths import time_of_flight
+from Original.das import das
+from Original.paths import time_of_flight
 from hdf5storage import loadmat
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 from matplotlib.animation import FFMpegWriter
 from jaxopt import OptaxSolver
 import optax
-from losses import (
+from Original.losses import (
     lag_one_coherence,
     coherence_factor,
     phase_error,

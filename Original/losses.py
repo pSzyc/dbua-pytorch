@@ -2,7 +2,7 @@ import numpy as np
 import jax.numpy as jnp
 from jax import jit, lax
 from functools import partial
-from das import das
+from Original.das import das
 
 
 @partial(jit, static_argnums=(3, 4))
