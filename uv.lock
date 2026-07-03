@@ -11,6 +11,15 @@ supported-markers = [
 ]
 
 [[package]]
+name = "absl-py"
+version = "2.4.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/64/c7/8de93764ad66968d19329a7e0c147a2bb3c7054c554d4a119111b8f9440f/absl_py-2.4.0.tar.gz", hash = "sha256:8c6af82722b35cf71e0f4d1d47dcaebfff286e27110a99fc359349b247dfb5d4", size = 116543, upload-time = "2026-01-28T10:17:05.322Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/18/a6/907a406bb7d359e6a63f99c313846d9eec4f7e6f7437809e03aa00fa3074/absl_py-2.4.0-py3-none-any.whl", hash = "sha256:88476fd881ca8aab94ffa78b7b6c632a782ab3ba1cd19c9bd423abc4fb4cd28d", size = 135750, upload-time = "2026-01-28T10:17:04.19Z" },
+]
+
+[[package]]
 name = "contourpy"
 version = "1.3.3"
 source = { registry = "https://pypi.org/simple" }
@@ -117,8 +126,11 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "hdf5storage", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
+    { name = "jax", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
+    { name = "jaxopt", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
     { name = "matplotlib", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
     { name = "numpy", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
+    { name = "optax", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
     { name = "torch", version = "2.11.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "sys_platform == 'linux'" },
     { name = "torch", version = "2.12.1", source = { registry = "https://pypi.org/simple" }, marker = "sys_platform == 'darwin'" },
     { name = "tqdm", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
@@ -127,8 +139,11 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "hdf5storage", specifier = ">=0.1.19" },
+    { name = "jax", specifier = ">=0.10.2" },
+    { name = "jaxopt", specifier = ">=0.8.5" },
     { name = "matplotlib", specifier = ">=3.7" },
     { name = "numpy", specifier = ">=1.25" },
+    { name = "optax", specifier = ">=0.2.8" },
     { name = "torch", marker = "sys_platform != 'linux'", specifier = ">=2.4" },
     { name = "torch", marker = "sys_platform == 'linux'", specifier = ">=2.4", index = "https://download.pytorch.org/whl/cu128" },
     { name = "tqdm", specifier = ">=4.66" },
@@ -195,6 +210,55 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/f3/ae/0180450929889340ae4fdbbd2b4fe979bb79505bf35a6fa7ad725cb0b43a/hdf5storage-0.2.2.tar.gz", hash = "sha256:6cfd031aeba0fdfb9fb1db2aa75b09a8d6b845c98745b4a2c0c8d8d752d58fe7", size = 83213, upload-time = "2025-09-30T16:57:57.817Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/4a/8e/d20c50365cd7b2e01bd1a0ed996f159e1d40fbc6d1714026f16fe6639449/hdf5storage-0.2.2-py3-none-any.whl", hash = "sha256:7f6f9a0bab1c3d9967da6dcbdefa30cf8ec0b3cef86810c6aaad3da5c498aa12", size = 77614, upload-time = "2025-09-30T16:57:56.448Z" },
+]
+
+[[package]]
+name = "jax"
+version = "0.10.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "jaxlib", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
+    { name = "ml-dtypes", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
+    { name = "numpy", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
+    { name = "opt-einsum", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
+    { name = "scipy", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/d2/73/eb91d98fcadfa2cbcfdd4e417ab116e47eb20882acc5ee678e47c35d6b57/jax-0.10.2.tar.gz", hash = "sha256:bf77428a8c2e6904c4f46d5ab12aa5cfc6cad2179f07f7e4c0fc75ac86ef0639", size = 2775110, upload-time = "2026-06-17T23:44:57.818Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/89/82/5ab5211079a151b6f661529369c0c8e98ec64cabf5c0cf22a0a05af124d8/jax-0.10.2-py3-none-any.whl", hash = "sha256:724d73c4678d8b06f6a6ab4db1b8a2fea8cd4f1e2c2564f99601634ec7b8d1c6", size = 3219515, upload-time = "2026-06-17T23:42:41.259Z" },
+]
+
+[[package]]
+name = "jaxlib"
+version = "0.10.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "ml-dtypes", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
+    { name = "numpy", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
+    { name = "scipy", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c2/68/eaa4cebe253359196a8e80a33b242959e27d8d2a6ae3d09339f21da2acb8/jaxlib-0.10.2-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:4df530afa354a22dc1747a5d560640450cbb895d49889338a3f58c76a4c76c8e", size = 61434805, upload-time = "2026-06-17T23:44:10.511Z" },
+    { url = "https://files.pythonhosted.org/packages/25/c1/4b884ea5962b6beb3c0f93742db54246bbf8b3274e48b0aca47908e454be/jaxlib-0.10.2-cp313-cp313-manylinux_2_27_aarch64.whl", hash = "sha256:45b28b0238697ab74bbcf20411aafb6db42acc31836cc2fd711e5cf056bf9556", size = 81084260, upload-time = "2026-06-17T23:44:14.065Z" },
+    { url = "https://files.pythonhosted.org/packages/36/ac/4ee28c65861605945223145fbcd3c9362ec2255ddf7d917574e205548c82/jaxlib-0.10.2-cp313-cp313-manylinux_2_27_x86_64.whl", hash = "sha256:9e4818b4a8756fd3918766ca2aa5342125809f4f08a6fe46026d4386e7c23644", size = 85467706, upload-time = "2026-06-17T23:44:17.471Z" },
+    { url = "https://files.pythonhosted.org/packages/56/5b/70df11da52a8b1a826184cccc05a3fec8aed76058a980021873fba3069cb/jaxlib-0.10.2-cp313-cp313t-macosx_11_0_arm64.whl", hash = "sha256:4c202d8ff7c1f3b5049dbd8f1e30e52759cd4e0a5835f0b3c7ae076a05818e28", size = 61564746, upload-time = "2026-06-17T23:44:24.421Z" },
+    { url = "https://files.pythonhosted.org/packages/23/5c/184a648ea5db6c8b1a08fc5784c157b4c557255e009fb56091393df3c6de/jaxlib-0.10.2-cp313-cp313t-manylinux_2_27_aarch64.whl", hash = "sha256:b7b029bb95d981566750475b9719a9d6b66ed5dd2748851667899b6cfe075299", size = 81204888, upload-time = "2026-06-17T23:44:27.57Z" },
+    { url = "https://files.pythonhosted.org/packages/6c/5c/539596a55265711d74147913278bcdc38412980be7d74d9c9d860297c486/jaxlib-0.10.2-cp313-cp313t-manylinux_2_27_x86_64.whl", hash = "sha256:e8b126097d609b0c6e6786e89f6dd6978adc02ebd5f63a1c61293fbac7821305", size = 85583810, upload-time = "2026-06-17T23:44:30.962Z" },
+]
+
+[[package]]
+name = "jaxopt"
+version = "0.8.5"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "jax", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
+    { name = "jaxlib", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
+    { name = "numpy", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
+    { name = "scipy", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/3a/da/ff7d7fbd13b8ed5e8458e80308d075fc649062b9f8676d3fc56f2dc99a82/jaxopt-0.8.5.tar.gz", hash = "sha256:2790bd68ef132b216c083a8bc7a2704eceb35a92c0fc0a1e652e79dfb1e9e9ab", size = 121709, upload-time = "2025-04-14T17:59:01.618Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/45/d8/55e0901103c93d57bab3b932294c216f0cbd49054187ce29f8f13808d530/jaxopt-0.8.5-py3-none-any.whl", hash = "sha256:ff221d1a86908ec759eb1e219ee1d12bf208a70707e961bf7401076fe7cf4d5e", size = 172434, upload-time = "2025-04-14T17:59:00.342Z" },
 ]
 
 [[package]]
@@ -294,6 +358,23 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/95/e4/b4b7c33151e74e5c802f3cde1ba807ebfc38401e329b44e215a5888dd76d/matplotlib-3.11.0-cp313-cp313t-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:565af866fd63e4bd3f987d580afe27c44c2552a3b3305f4ecbb85133601ea6f3", size = 10045491, upload-time = "2026-06-12T02:28:27.141Z" },
     { url = "https://files.pythonhosted.org/packages/71/28/394548efd68354110c1a1be11fe6b6e559e06d1a23da35908a0e316c55a9/matplotlib-3.11.0-cp313-cp313t-manylinux_2_26_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:e6b3e64dea5062c570f04358e2711859f3531b459f29516274fbad889079e4f3", size = 10857059, upload-time = "2026-06-12T02:28:29.222Z" },
     { url = "https://files.pythonhosted.org/packages/c8/44/e7922e6e2a4d63bdfbc9dc4a53e3850ab438d46cf42e6779bb15ec92c948/matplotlib-3.11.0-cp313-cp313t-musllinux_1_2_x86_64.whl", hash = "sha256:942b37c5db1899610bd1543ce8e13e4ecff9a4633e7f63bb6aa9205d2644ebd1", size = 10939576, upload-time = "2026-06-12T02:28:31.66Z" },
+]
+
+[[package]]
+name = "ml-dtypes"
+version = "0.5.4"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/0e/4a/c27b42ed9b1c7d13d9ba8b6905dece787d6259152f2309338aed29b2447b/ml_dtypes-0.5.4.tar.gz", hash = "sha256:8ab06a50fb9bf9666dd0fe5dfb4676fa2b0ac0f31ecff72a6c3af8e22c063453", size = 692314, upload-time = "2025-11-17T22:32:31.031Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d9/a1/4008f14bbc616cfb1ac5b39ea485f9c63031c4634ab3f4cf72e7541f816a/ml_dtypes-0.5.4-cp313-cp313-macosx_10_13_universal2.whl", hash = "sha256:8c760d85a2f82e2bed75867079188c9d18dae2ee77c25a54d60e9cc79be1bc48", size = 676888, upload-time = "2025-11-17T22:31:56.907Z" },
+    { url = "https://files.pythonhosted.org/packages/d3/b7/dff378afc2b0d5a7d6cd9d3209b60474d9819d1189d347521e1688a60a53/ml_dtypes-0.5.4-cp313-cp313-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:ce756d3a10d0c4067172804c9cc276ba9cc0ff47af9078ad439b075d1abdc29b", size = 5036993, upload-time = "2025-11-17T22:31:58.497Z" },
+    { url = "https://files.pythonhosted.org/packages/eb/33/40cd74219417e78b97c47802037cf2d87b91973e18bb968a7da48a96ea44/ml_dtypes-0.5.4-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:533ce891ba774eabf607172254f2e7260ba5f57bdd64030c9a4fcfbd99815d0d", size = 5010956, upload-time = "2025-11-17T22:31:59.931Z" },
+    { url = "https://files.pythonhosted.org/packages/4f/74/e9ddb35fd1dd43b1106c20ced3f53c2e8e7fc7598c15638e9f80677f81d4/ml_dtypes-0.5.4-cp313-cp313t-macosx_10_13_universal2.whl", hash = "sha256:304ad47faa395415b9ccbcc06a0350800bc50eda70f0e45326796e27c62f18b6", size = 702083, upload-time = "2025-11-17T22:32:04.08Z" },
+    { url = "https://files.pythonhosted.org/packages/74/f5/667060b0aed1aa63166b22897fdf16dca9eb704e6b4bbf86848d5a181aa7/ml_dtypes-0.5.4-cp313-cp313t-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:6a0df4223b514d799b8a1629c65ddc351b3efa833ccf7f8ea0cf654a61d1e35d", size = 5354111, upload-time = "2025-11-17T22:32:05.546Z" },
+    { url = "https://files.pythonhosted.org/packages/40/49/0f8c498a28c0efa5f5c95a9e374c83ec1385ca41d0e85e7cf40e5d519a21/ml_dtypes-0.5.4-cp313-cp313t-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:531eff30e4d368cb6255bc2328d070e35836aa4f282a0fb5f3a0cd7260257298", size = 5366453, upload-time = "2025-11-17T22:32:07.115Z" },
 ]
 
 [[package]]
@@ -480,6 +561,30 @@ wheels = [
 ]
 
 [[package]]
+name = "opt-einsum"
+version = "3.4.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/8c/b9/2ac072041e899a52f20cf9510850ff58295003aa75525e58343591b0cbfb/opt_einsum-3.4.0.tar.gz", hash = "sha256:96ca72f1b886d148241348783498194c577fa30a8faac108586b14f1ba4473ac", size = 63004, upload-time = "2024-09-26T14:33:24.483Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/23/cd/066e86230ae37ed0be70aae89aabf03ca8d9f39c8aea0dec8029455b5540/opt_einsum-3.4.0-py3-none-any.whl", hash = "sha256:69bb92469f86a1565195ece4ac0323943e83477171b91d24c35afe028a90d7cd", size = 71932, upload-time = "2024-09-26T14:33:23.039Z" },
+]
+
+[[package]]
+name = "optax"
+version = "0.2.8"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "absl-py", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
+    { name = "jax", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
+    { name = "jaxlib", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
+    { name = "numpy", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/8c/f9/e3d11ae6f298ee941a0690e353a323d158ba5dedc436e75621c310845c5c/optax-0.2.8.tar.gz", hash = "sha256:5b225b35066fc3eebaa4d798f1b4173b4d57d1a480610908981f8343b50af0b0", size = 301193, upload-time = "2026-03-20T23:30:05.465Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/8a/69/6a93d8600c339d7687a05857c7907bd4dd8cf88691a5ea106d7a50af90a1/optax-0.2.8-py3-none-any.whl", hash = "sha256:e3ca2d36c99daab1800ae9dbc0545034382d6bc780b24d969e1b0df65fa31cb4", size = 402960, upload-time = "2026-03-20T23:30:03.886Z" },
+]
+
+[[package]]
 name = "packaging"
 version = "26.2"
 source = { registry = "https://pypi.org/simple" }
@@ -534,6 +639,25 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/66/c0/0c8b6ad9f17a802ee498c46e004a0eb49bc148f2fd230864601a86dcf6db/python-dateutil-2.9.0.post0.tar.gz", hash = "sha256:37dd54208da7e1cd875388217d5e00ebd4179249f90fb72437e91a35459a0ad3", size = 342432, upload-time = "2024-03-01T18:36:20.211Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/ec/57/56b9bcc3c9c6a792fcbaf139543cee77261f3651ca9da0c93f5c1221264b/python_dateutil-2.9.0.post0-py2.py3-none-any.whl", hash = "sha256:a8b2bc7bffae282281c8140a97d3aa9c14da0b136dfe83f850eea9a5f7470427", size = 229892, upload-time = "2024-03-01T18:36:18.57Z" },
+]
+
+[[package]]
+name = "scipy"
+version = "1.18.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/a7/25/c2700dfaf6442b4effaa91af24ebce5dc9d31bb4a69706313aae70d72cd0/scipy-1.18.0.tar.gz", hash = "sha256:67b2ad2ad54c72ca6d04975a9b2df8c3638c34ddd5b28738e94fc2b57929d378", size = 30774447, upload-time = "2026-06-19T15:01:43.456Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/05/52/9c0136c2de7ae0779b7b366447766cec6d9f0702c56bb8ffeb04c8fd3af4/scipy-1.18.0-cp313-cp313-macosx_10_15_x86_64.whl", hash = "sha256:09143f676d157d9f546d663504ef9c1becb819824f1afc018814176411942446", size = 31036107, upload-time = "2026-06-19T15:00:14.03Z" },
+    { url = "https://files.pythonhosted.org/packages/02/73/0291a64843270f4efb86cdcf2ee0f2048631b65ec6b405398b2b4dbf11bf/scipy-1.18.0-cp313-cp313-macosx_12_0_arm64.whl", hash = "sha256:5efe260f69417b97ddae455bfb5a95e8359f7f66ad7fa9522a60feb66f169520", size = 28663303, upload-time = "2026-06-19T15:00:16.819Z" },
+    { url = "https://files.pythonhosted.org/packages/d3/0f/10ffa0b697a572f4e0d48b92a88895d366422f019f723e7e14a84c050dac/scipy-1.18.0-cp313-cp313-macosx_14_0_arm64.whl", hash = "sha256:68363b7eaacd8b5dd426df56d782cc156468ac79a127a1b87ca597d6e2e82197", size = 20404960, upload-time = "2026-06-19T15:00:19.635Z" },
+    { url = "https://files.pythonhosted.org/packages/7e/d2/e896cea21ba8edd6c81d4c55b1ffcc717e79698dcbebf9641b4cfb4c6622/scipy-1.18.0-cp313-cp313-macosx_14_0_x86_64.whl", hash = "sha256:c5557d8be5da8e41353fcd4d21491fdbab83b062fc579e94dc09a7c8ab4f669b", size = 23034074, upload-time = "2026-06-19T15:00:22.107Z" },
+    { url = "https://files.pythonhosted.org/packages/ea/b2/e83ea34279a52c03374477c74006256ec78df65fc877baa4617d6de1d202/scipy-1.18.0-cp313-cp313-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:0d13bca67c096d89fb95ced0d8921807300fce0275643aef9533cc63a0773468", size = 33942038, upload-time = "2026-06-19T15:00:24.964Z" },
+    { url = "https://files.pythonhosted.org/packages/f6/af/e8fe5fb136f51e2b01678b92cb4106d10d8cd68ec147ead2e7cb0ac75398/scipy-1.18.0-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:a46f9273dbd0eb1cefba61c9b8648b4dfe3cbc14a080176f9a73e44b8336dc7f", size = 35266390, upload-time = "2026-06-19T15:00:28.059Z" },
+    { url = "https://files.pythonhosted.org/packages/3a/49/2c5cbb907b56695fc67517811d1db234dfd83381a84814ec220aded2794d/scipy-1.18.0-cp313-cp313-musllinux_1_2_aarch64.whl", hash = "sha256:5aba46108853ddfc77906b6557aac839d2b52e900c1d72a1180adaaab58d265f", size = 35551324, upload-time = "2026-06-19T15:00:31.014Z" },
+    { url = "https://files.pythonhosted.org/packages/bb/73/eda39f7a2d306ff0ffc574afd13c0bbb6d10a603d9a413998ee269487a80/scipy-1.18.0-cp313-cp313-musllinux_1_2_x86_64.whl", hash = "sha256:b6f758e35f12757b5d95c00bc6de2438e229c2664b7a92e96f205959d9f2dfa4", size = 37404785, upload-time = "2026-06-19T15:00:34.072Z" },
 ]
 
 [[package]]
