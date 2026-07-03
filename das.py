@@ -49,7 +49,7 @@ def das(iqraw, tA, tB, fs, fd, A=None, B=None, apoA=1, apoB=1, interp="cubic"):
     # Baseband interpolator
     def bbint(iq, t):
         iqfoc = fint(iq, fs * t)
-        return iqfoc * jnp.exp(2j * jnp.pi * fd * t)
+        return iqfoc * jnp.exp(2j * jnp.pi * fd * t) # why phase changes
 
     # # Delay-and-sum beamforming (vmap inner, vmap outer)
     # # This method uses vmap to push both the inner and outer loops into XLA, which uses

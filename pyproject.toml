@@ -1,0 +1,43 @@
+[project]
+name = "dbua-pytorch"
+version = "0.1.0"
+description = "Differentiable beamforming by unrolled adaptive (DBUA) ultrasound reconstruction — PyTorch port"
+readme = "README.md"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+    "torch>=2.4",
+    "numpy>=1.25",
+    "matplotlib>=3.7",
+    "tqdm>=4.66",
+    "hdf5storage>=0.1.19",
+]
+
+# ---------------------------------------------------------------------------
+# uv / PyTorch index configuration
+#
+# Primary target: Linux + CUDA. PyTorch CUDA wheels live on the pytorch.org
+# index (not PyPI) and exist only for Linux/Windows, so we select the CUDA
+# index for Linux only. On macOS (dev machines) torch falls back to the
+# default PyPI wheel, which ships MPS/CPU support — keeping `uv sync` working
+# on darwin too.
+#
+# To change CUDA version, swap cu128 below (e.g. cu124, cu126) to match the
+# driver on the deploy box, update both the index name and url, then re-run
+# `uv lock`.
+# ---------------------------------------------------------------------------
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cu128", marker = "sys_platform == 'linux'" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
+[tool.uv]
+# Lock for both the Linux/CUDA deploy target and macOS dev machines.
+environments = [
+    "sys_platform == 'linux'",
+    "sys_platform == 'darwin'",
+]
