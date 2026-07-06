@@ -70,16 +70,17 @@ def das(iqraw, tA, tB, fs, fd, A=None, B=None, apoA=1, apoB=1, interp="cubic"):
     # call das_b(iqraw) then das_b(tA). Iterate the leading (a) axis explicitly instead.
     def das_b(x):
         iq_i, tA_i = x
-        return torch.tensordot(
-            B, torch.vmap(bbint)(iq_i, tA_i + tB) * apoB, dims=([-1], [0])
-        )
+        val = torch.vmap(bbint)(iq_i, tA_i + tB) * apoB
+        # bbint returns complex; torch.tensordot (unlike jnp) requires matching
+        # dtypes, so promote the (possibly real) combination matrix to match.
+        return torch.tensordot(B.to(val.dtype), val, dims=([-1], [0]))
 
     rows = [
         checkpoint(das_b, (iqraw[i], tA[i]), use_reentrant=False)
         for i in range(na)
     ]
     stacked = torch.stack(rows, dim=0) * apoA
-    return torch.tensordot(A, stacked, dims=([-1], [0]))
+    return torch.tensordot(A.to(stacked.dtype), stacked, dims=([-1], [0]))
 
 
 def safe_access(x: torch.Tensor, s: torch.Tensor):
