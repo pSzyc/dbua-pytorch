@@ -10,7 +10,7 @@ dependencies = [
     "matplotlib>=3.7",
     "tqdm>=4.66",
     "hdf5storage>=0.1.19",
-    "jax>=0.10.2",
+    "jax[cuda12]>=0.10.2 ; sys_platform == 'linux'",
     "jaxopt>=0.8.5",
     "optax>=0.2.8",
 ]
