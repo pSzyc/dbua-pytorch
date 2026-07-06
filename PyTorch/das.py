@@ -1,5 +1,6 @@
 from functools import partial
 import torch
+from torch.utils.checkpoint import checkpoint
 
 
 @partial(torch.compile)
@@ -46,37 +47,37 @@ def das(iqraw, tA, tB, fs, fd, A=None, B=None, apoA=1, apoB=1, interp="cubic"):
     }
     fint = fints[interp]
 
-    # Round-trip delay for every (a, b, pixel): tA[a] + tB[b].
-    # -> [na, nb, *pixdims]; flatten the pixel dims to a single axis P for batched gather.
-    tfull = tA.unsqueeze(1) + tB.unsqueeze(0)
-    pix_shape = tfull.shape[2:]
-    tflat = tfull.reshape(na, nb, -1)  # [na, nb, P]
+    # Baseband interpolator
+    def bbint(iq, t):
+        iqfoc = fint(iq, fs * t)
+        return iqfoc * torch.exp(2j * torch.pi * fd * t)
 
-    # Baseband interpolation + demodulation phase rotation ("bbint").
-    # fint gathers iqraw ([na, nb, nsamps]) at fractional sample indices fs * t.
-    iqfoc = fint(iqraw, fs * tflat)  # [na, nb, P]
-    iqfoc = iqfoc * torch.exp(2j * torch.pi * fd * tflat)
+    # # Delay-and-sum beamforming (vmap inner, vmap outer)
+    # # This method uses vmap to push both the inner and outer loops into XLA, which uses
+    # # uses more memory, but can take advantage of XLA's parallelization.  However, it is
+    # # slower when memory bandwidth is a bottleneck.
+    # def das_b(iq_i, tA_i):
+    #     return jnp.tensordot(B, vmap(bbint)(iq_i, tA_i + tB) * apoB, (-1, 0))
+    # return jnp.tensordot(A, vmap(das_b)(iqraw, tA) * apoA, (-1, 0))
 
-    # Delay-and-sum beamforming as two tensor contractions.
-    # Apodize + contract dim 1 (nb) with B, then dim 0 (na) with A. B/A output dims are
-    # flattened for a generic einsum and reshaped back to [*na_out, *nb_out, *pixdims].
-    if torch.is_tensor(apoB):
-        iqfoc = iqfoc * apoB.reshape(1, nb, -1)
-    else:
-        iqfoc = iqfoc * apoB
+    # Delay-and-sum beamforming (vmap inner, loop outer).
+    # Vectorize over the b aperture, but walk the a aperture one row at a time so the
+    # full [na, nb, *pixdims] round-trip tensor is never materialized. Each row is
+    # gradient-checkpointed (recomputed in backward instead of stored) to bound
+    # activation memory -- the torch analog of JAX's @checkpoint + lax.map.
+    #
+    # NOTE: Python's builtin map() is NOT jax.lax.map: map(das_b, (iqraw, tA)) would
+    # call das_b(iqraw) then das_b(tA). Iterate the leading (a) axis explicitly instead.
+    def das_b(x):
+        iq_i, tA_i = x
+        return torch.tensordot(B, torch.vmap(bbint)(iq_i, tA_i + tB) * apoB, (-1, 0))
 
-    Bmat = B.reshape(-1, nb).to(dtype=iqfoc.dtype, device=iqfoc.device)  # [Nbo, nb]
-    iqb = torch.einsum("nbp,ob->nop", iqfoc, Bmat)  # [na, Nbo, P]
-
-    if torch.is_tensor(apoA):
-        iqb = iqb * apoA.reshape(na, 1, -1)
-    else:
-        iqb = iqb * apoA
-
-    Amat = A.reshape(-1, na).to(dtype=iqfoc.dtype, device=iqfoc.device)  # [Nao, na]
-    iqab = torch.einsum("an,nop->aop", Amat, iqb)  # [Nao, Nbo, P]
-
-    return iqab.reshape(*A.shape[:-1], *B.shape[:-1], *pix_shape)
+    rows = [
+        checkpoint(das_b, (iqraw[i], tA[i]), use_reentrant=False)
+        for i in range(na)
+    ]
+    stacked = torch.stack(rows, dim=0) * apoA
+    return torch.tensordot(A, stacked, dims=([-1], [0]))
 
 
 def safe_access(x: torch.Tensor, s: torch.Tensor):
@@ -108,7 +109,7 @@ def interp_linear(x: torch.Tensor, si: torch.Tensor):
     @param si: [..., P] indices to interpolate at
     @return: Interpolated signal
     """
-    s = torch.trunc(si)  # Integer part (truncated toward zero)
+    s = torch.trunc(si)  # Integer part (toward zero, matching jnp.modf)
     f = si - s  # Fractional part
     x0 = safe_access(x, s + 0)
     x1 = safe_access(x, s + 1)
@@ -121,7 +122,7 @@ def interp_cubic(x: torch.Tensor, si: torch.Tensor):
     @param si: [..., P] indices to interpolate at
     @return: Interpolated signal
     """
-    s = torch.trunc(si)  # Integer part (truncated toward zero)
+    s = torch.trunc(si)  # Integer part (toward zero, matching jnp.modf)
     f = si - s  # Fractional part
     # Values
     x0 = safe_access(x, s - 1)
@@ -150,7 +151,7 @@ def interp_lanczos(x: torch.Tensor, si: torch.Tensor, nlobe=3):
     @param nlobe: Number of lobes of the sinc function (e.g., 3 or 5)
     @return: Interpolated signal
     """
-    s = torch.trunc(si)  # Integer part (truncated toward zero)
+    s = torch.trunc(si)  # Integer part (toward zero, matching jnp.modf)
     f = si - s  # Fractional part
     x0 = safe_access(x, s - 1)
     x1 = safe_access(x, s + 0)
