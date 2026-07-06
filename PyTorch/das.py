@@ -70,7 +70,9 @@ def das(iqraw, tA, tB, fs, fd, A=None, B=None, apoA=1, apoB=1, interp="cubic"):
     # call das_b(iqraw) then das_b(tA). Iterate the leading (a) axis explicitly instead.
     def das_b(x):
         iq_i, tA_i = x
-        return torch.tensordot(B, torch.vmap(bbint)(iq_i, tA_i + tB) * apoB, (-1, 0))
+        return torch.tensordot(
+            B, torch.vmap(bbint)(iq_i, tA_i + tB) * apoB, dims=([-1], [0])
+        )
 
     rows = [
         checkpoint(das_b, (iqraw[i], tA[i]), use_reentrant=False)
@@ -89,7 +91,11 @@ def safe_access(x: torch.Tensor, s: torch.Tensor):
     nsamps = x.shape[-1]
     s = s.long()
     valid = (s >= 0) & (s < nsamps)
-    vals = torch.gather(x, -1, s.clamp(0, nsamps - 1))
+    # x is the 1-D signal [nsamps] (always called under vmap over the element axis),
+    # so advanced-index it: an s of shape [*pixdims] yields [*pixdims] output. This
+    # mirrors JAX's x[s]; torch.gather can't be used here since it requires
+    # x.ndim == s.ndim.
+    vals = x[s.clamp(0, nsamps - 1)]
     return torch.where(valid, vals, torch.zeros_like(vals))
 
 
@@ -100,8 +106,7 @@ def interp_nearest(x: torch.Tensor, si: torch.Tensor):
     @return: Interpolated signal
     """
     idx = torch.round(si).clamp(0, x.shape[-1] - 1).long()
-    return torch.gather(x, -1, idx)
-
+    return x[idx]
 
 def interp_linear(x: torch.Tensor, si: torch.Tensor):
     """1D linear interpolation.
