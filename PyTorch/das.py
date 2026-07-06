@@ -72,15 +72,17 @@ def das(iqraw, tA, tB, fs, fd, A=None, B=None, apoA=1, apoB=1, interp="cubic"):
         iq_i, tA_i = x
         val = torch.vmap(bbint)(iq_i, tA_i + tB) * apoB
         # bbint returns complex; torch.tensordot (unlike jnp) requires matching
-        # dtypes, so promote the (possibly real) combination matrix to match.
-        return torch.tensordot(B.to(val.dtype), val, dims=([-1], [0]))
+        # dtype AND device, so align the (possibly real / CPU) combination matrix.
+        return torch.tensordot(B.to(device=val.device, dtype=val.dtype), val, dims=([-1], [0]))
 
     rows = [
         checkpoint(das_b, (iqraw[i], tA[i]), use_reentrant=False)
         for i in range(na)
     ]
     stacked = torch.stack(rows, dim=0) * apoA
-    return torch.tensordot(A.to(stacked.dtype), stacked, dims=([-1], [0]))
+    return torch.tensordot(
+        A.to(device=stacked.device, dtype=stacked.dtype), stacked, dims=([-1], [0])
+    )
 
 
 def safe_access(x: torch.Tensor, s: torch.Tensor):
