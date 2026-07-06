@@ -91,10 +91,6 @@ def safe_access(x: torch.Tensor, s: torch.Tensor):
     nsamps = x.shape[-1]
     s = s.long()
     valid = (s >= 0) & (s < nsamps)
-    # x is the 1-D signal [nsamps] (always called under vmap over the element axis),
-    # so advanced-index it: an s of shape [*pixdims] yields [*pixdims] output. This
-    # mirrors JAX's x[s]; torch.gather can't be used here since it requires
-    # x.ndim == s.ndim.
     vals = x[s.clamp(0, nsamps - 1)]
     return torch.where(valid, vals, torch.zeros_like(vals))
 
