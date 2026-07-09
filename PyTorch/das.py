@@ -31,13 +31,26 @@ def das(iqraw, tA, tB, fs, fd, A=None, B=None, apoA=1, apoB=1, interp="cubic"):
     """
     na, nb = iqraw.shape[0], iqraw.shape[1]
 
+    # Carry the IQ signal as separate real/imag float32 tensors rather than a
+    # single complex tensor. TorchInductor cannot codegen complex operators (it
+    # warns and falls back to eager), which left this gather-heavy interpolation
+    # completely unfused and made it slower than the JAX/XLA original.
+    # Interpolation is linear, so interpolating the real and imaginary parts
+    # separately with shared taps is exact, and the baseband demodulation
+    # exp(2j*pi*fd*t) reduces to a real (cos, sin) rotation. das still returns a
+    # complex tensor, so callers are unaffected.
+    is_complex = iqraw.is_complex()
+    iqr = iqraw.real.contiguous()
+    iqi = iqraw.imag.contiguous() if is_complex else torch.zeros_like(iqr)
+    rdt = iqr.dtype
+
     # The default linear combination is to sum all elements.
     if A is None:
-        A = torch.ones((na,), dtype=iqraw.real.dtype, device=iqraw.device)
+        A = torch.ones((na,), dtype=rdt, device=iqraw.device)
     if B is None:
-        B = torch.ones((nb,), dtype=iqraw.real.dtype, device=iqraw.device)
+        B = torch.ones((nb,), dtype=rdt, device=iqraw.device)
 
-    # Choose the interpolating function
+    # Choose the interpolating function (each operates on real tensors)
     fints = {
         "nearest": interp_nearest,
         "linear": interp_linear,
@@ -47,18 +60,15 @@ def das(iqraw, tA, tB, fs, fd, A=None, B=None, apoA=1, apoB=1, interp="cubic"):
     }
     fint = fints[interp]
 
-    # Baseband interpolator
-    def bbint(iq, t):
-        iqfoc = fint(iq, fs * t)
-        return iqfoc * torch.exp(2j * torch.pi * fd * t)
-
-    # # Delay-and-sum beamforming (vmap inner, vmap outer)
-    # # This method uses vmap to push both the inner and outer loops into XLA, which uses
-    # # uses more memory, but can take advantage of XLA's parallelization.  However, it is
-    # # slower when memory bandwidth is a bottleneck.
-    # def das_b(iq_i, tA_i):
-    #     return jnp.tensordot(B, vmap(bbint)(iq_i, tA_i + tB) * apoB, (-1, 0))
-    # return jnp.tensordot(A, vmap(das_b)(iqraw, tA) * apoA, (-1, 0))
+    # Baseband interpolator: interpolate re/im with shared taps, then rotate by
+    # the demod phase. Returns the (real, imag) parts of the focused signal.
+    def bbint(xr, xi, t):
+        si = fs * t
+        yr = fint(xr, si)
+        yi = fint(xi, si)
+        ph = 2 * torch.pi * fd * t
+        cph, sph = torch.cos(ph), torch.sin(ph)
+        return yr * cph - yi * sph, yr * sph + yi * cph
 
     # Delay-and-sum beamforming (vmap inner, loop outer).
     # Vectorize over the b aperture, but walk the a aperture one row at a time so the
@@ -69,20 +79,24 @@ def das(iqraw, tA, tB, fs, fd, A=None, B=None, apoA=1, apoB=1, interp="cubic"):
     # NOTE: Python's builtin map() is NOT jax.lax.map: map(das_b, (iqraw, tA)) would
     # call das_b(iqraw) then das_b(tA). Iterate the leading (a) axis explicitly instead.
     def das_b(x):
-        iq_i, tA_i = x
-        val = torch.vmap(bbint)(iq_i, tA_i + tB) * apoB
-        # bbint returns complex; torch.tensordot (unlike jnp) requires matching
-        # dtype AND device, so align the (possibly real / CPU) combination matrix.
-        return torch.tensordot(B.to(device=val.device, dtype=val.dtype), val, dims=([-1], [0]))
+        xr_i, xi_i, tA_i = x
+        vr, vi = torch.vmap(bbint)(xr_i, xi_i, tA_i + tB)
+        vr, vi = vr * apoB, vi * apoB
+        Bc = B.to(device=vr.device, dtype=vr.dtype)
+        return (torch.tensordot(Bc, vr, dims=([-1], [0])),
+                torch.tensordot(Bc, vi, dims=([-1], [0])))
 
-    rows = [
-        checkpoint(das_b, (iqraw[i], tA[i]), use_reentrant=False)
-        for i in range(na)
-    ]
-    stacked = torch.stack(rows, dim=0) * apoA
-    return torch.tensordot(
-        A.to(device=stacked.device, dtype=stacked.dtype), stacked, dims=([-1], [0])
-    )
+    rows_r, rows_i = [], []
+    for i in range(na):
+        r, im = checkpoint(das_b, (iqr[i], iqi[i], tA[i]), use_reentrant=False)
+        rows_r.append(r)
+        rows_i.append(im)
+    stacked_r = torch.stack(rows_r, dim=0) * apoA
+    stacked_i = torch.stack(rows_i, dim=0) * apoA
+    Ac = A.to(device=stacked_r.device, dtype=stacked_r.dtype)
+    fr = torch.tensordot(Ac, stacked_r, dims=([-1], [0]))
+    fi = torch.tensordot(Ac, stacked_i, dims=([-1], [0]))
+    return torch.complex(fr, fi)
 
 
 def safe_access(x: torch.Tensor, s: torch.Tensor):
