@@ -119,4 +119,4 @@ def updateFigure(make_image, bmode_title, c, i, c_true, sample, nxi, nzi, nxc, n
     hbt.set_text(bmode_title(c))
     hct.set_text(_sos_title(i, cimg, c_true))
 
-    fig.savefig(f"scratch/{sample}.png")
+    fig.savefig(f"scratch/{sample}_torch.png")

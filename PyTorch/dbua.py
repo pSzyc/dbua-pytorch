@@ -1,4 +1,6 @@
+import json
 from functools import partial
+from pathlib import Path
 
 import numpy as np
 import torch
@@ -60,6 +62,32 @@ def optimization_loop(optimizer, c, execution_manager: ExecutionManager):
             updateFigure(make_image, make_title, c, i + 1, c_true, config.sample, nxi, nzi, nxc, nzc, handles)
 
 
+def compute_final_metrics(c, execution_manager: ExecutionManager, config: DBUAConfig):
+    """Evaluate the converged sound-speed map ``c``.
+
+    Returns the final cost-function errors (all four focusing losses on ``c``)
+    and, for uniform phantoms (whose ground-truth speed is a known constant),
+    the reconstruction error of ``c`` against that constant.
+    """
+    with torch.no_grad():
+        metrics = {
+            "sb": float(execution_manager.sb_loss(c)),
+            "lc": float(execution_manager.lc_loss(c)),
+            "cf": float(execution_manager.cf_loss(c)),
+            "pe": float(execution_manager.pe_loss(c)),
+        }
+
+    c_true = config.ctrue[config.sample]
+    if c_true > 0:  # uniform phantom: error w.r.t. the known constant real value
+        c_np = c.detach().cpu().numpy()
+        metrics["c_true"] = float(c_true)
+        metrics["mean_c"] = float(np.mean(c_np))
+        metrics["mae"] = float(np.mean(np.abs(c_np - c_true)))
+        metrics["rmse"] = float(np.sqrt(np.mean((c_np - c_true) ** 2)))
+
+    return metrics
+
+
 def main(config: DBUAConfig):
 
     assert (
@@ -91,15 +119,28 @@ def main(config: DBUAConfig):
     # Create the optimizer (AMSGrad variant of Adam, matching optax.amsgrad)
     optimizer = torch.optim.Adam([c], lr=config.learning_rate, amsgrad=True)
     optimization_loop(optimizer, c, execution_manager)
-    return c.detach()
+
+    # Final sound-speed map plus its cost-function / reconstruction errors
+    c = c.detach()
+    metrics = compute_final_metrics(c, execution_manager, config)
+    return c, metrics
 
 
 if __name__ == "__main__":
-    config = DBUAConfig()
-    c = main(config)
-    np.save(c, f"{config.sample}-torch.npy")
+    results_dir = Path("results")
+    results_dir.mkdir(exist_ok=True)
 
-    # # Run all examples
-    # for sample in config.ctrue.keys():
-    #     print(sample)
-    #     main(DBUAConfig(sample=sample))
+    # Run all examples, keeping going if any single sample fails
+    results = {}
+    for sample in DBUAConfig().ctrue.keys():
+        try:
+            config = DBUAConfig(sample=sample)
+            c, metrics = main(config)
+            np.save(results_dir / f"{sample}-torch.npy", c.cpu().numpy())
+            results[sample] = metrics
+        except Exception as e:
+            results[sample] = {"error": str(e)}
+
+    # Write the final metrics / errors as JSON
+    with open(results_dir / "results-torch.json", "w") as f:
+        json.dump(results, f, indent=2)
