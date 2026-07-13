@@ -1,8 +1,6 @@
-import numpy as np
 import torch
 from functools import partial
 from PyTorch.das import das
-
 
 def _nansum(x, dim):
     """nansum that also supports complex tensors (torch.nansum does not).
