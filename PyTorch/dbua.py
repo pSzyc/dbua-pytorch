@@ -1,3 +1,5 @@
+from functools import partial
+
 import numpy as np
 import torch
 
@@ -5,7 +7,7 @@ from tqdm import tqdm
 
 from PyTorch.conf import DBUAConfig
 from PyTorch.plotting import plot_errors_vs_sound_speeds, createFigure, updateFigure
-from PyTorch.processing import load_dataset
+from PyTorch.processing import load_dataset, makeImage, bmode_title
 from PyTorch.execution_manager import ExecutionManager
 
 
@@ -39,8 +41,14 @@ def optimization_loop(optimizer, c, execution_manager: ExecutionManager):
     xc, zc = execution_manager.get_xc_zc()
     nxi, nzi = execution_manager.get_nxi_nzi()
 
+    # Bind the fixed acquisition data / geometry into plain c -> value callables
+    # for the plotting layer, so it stays decoupled from the ExecutionManager.
+    em = execution_manager
+    make_image = partial(makeImage, em.iqdata, em.t0, em.fs, em.fd, em._tof_image)
+    make_title = partial(bmode_title, em.sb_loss, em.cf_loss, em.pe_loss)
+
     # Create the figure once, outside the optimization loop
-    handles = createFigure(c, 0, c_true, xi, zi, xc, zc, nxi, nzi, nxc, nzc)
+    handles = createFigure(make_image, make_title, c, 0, c_true, xi, zi, xc, zc, nxi, nzi, nxc, nzc)
 
     for i in tqdm(range(config.n_iters)):
         optimizer.zero_grad()
@@ -49,7 +57,7 @@ def optimization_loop(optimizer, c, execution_manager: ExecutionManager):
         optimizer.step()
         if i % 10 == 0:
             # Reuse the existing figure
-            updateFigure(c, i + 1, c_true, config.sample, nxi, nzi, nxc, nzc, handles)
+            updateFigure(make_image, make_title, c, i + 1, c_true, config.sample, nxi, nzi, nxc, nzc, handles)
 
 
 def main(config: DBUAConfig):
@@ -60,7 +68,7 @@ def main(config: DBUAConfig):
                             \nOptions are {", ".join(config.ctrue.keys()).lstrip(" ,")}.'
 
     # Get IQ data, time zeros, sampling and demodulation frequency, and element positions
-    iqdata, t0, fs, fd, elpos, _, _ = load_dataset(config.sample)
+    iqdata, t0, fs, fd, elpos, _, _ = load_dataset(config.data_dir / f"{config.sample}.mat")
 
     # Move acquisition data onto the compute device as torch tensors.
     fs, fd = float(fs), float(fd)

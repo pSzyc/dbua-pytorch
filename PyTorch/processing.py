@@ -14,6 +14,28 @@ def load_dataset(data_path):
     elpos = mdict["elpos"]  # element position
     return iqdata, t0, fs, fd, elpos, dsf, t
 
-def makeImage(self, iqdata, t0, fs, fd):
-    t = self.tof_image(c)
+def bmode_title(sb_loss, cf_loss, pe_loss, c):
+    """B-mode panel title for sound-speed map ``c``.
+
+    Free function with explicit dependencies (mirrors ``makeImage``): the three
+    data-term loss callables ``c -> scalar`` (no TV, matching the original
+    title). Bind them with ``functools.partial`` so callers invoke
+    ``bmode_title(c)``. Evaluate only inside a ``torch.no_grad()`` context --
+    torch.compile guards on grad-mode, so a grad-enabled call would force a
+    second recompile of the beamformer just to draw the title.
+    """
+    return "SB: %.2f, CF: %.3f, PE: %.3f" % (
+        float(sb_loss(c)), float(cf_loss(c)), float(pe_loss(c)))
+
+
+def makeImage(iqdata, t0, fs, fd, tof_image, c):
+    """Log-magnitude B-mode image for sound-speed map ``c``.
+
+    Free function with explicit dependencies (no manager coupling): ``tof_image``
+    is a callable ``c -> [elements, *pixdims]`` giving the image-geometry
+    time-of-flight, and the beamsum uses the acquisition IQ / timing
+    (``iqdata``, ``t0``, ``fs``, ``fd``). Bind the fixed args with
+    ``functools.partial`` so callers can invoke ``make_image(c)``.
+    """
+    t = tof_image(c)
     return torch.abs(das(iqdata, t - t0, t, fs, fd))
