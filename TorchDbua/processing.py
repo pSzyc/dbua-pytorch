@@ -1,7 +1,7 @@
 from hdf5storage import loadmat
 import torch
 
-from PyTorch.das import das
+from TorchDbua.das import das
 
 def load_dataset(data_path):
     mdict = loadmat(data_path) # f"{DATA_DIR}/{sample}.mat")

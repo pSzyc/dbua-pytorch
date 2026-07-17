@@ -7,10 +7,10 @@ import torch
 
 from tqdm import tqdm
 
-from PyTorch.conf import DBUAConfig
-from PyTorch.plotting import plot_errors_vs_sound_speeds, createFigure, updateFigure
-from PyTorch.processing import load_dataset, makeImage, bmode_title
-from PyTorch.execution_manager import ExecutionManager
+from TorchDbua.conf import DBUAConfig
+from TorchDbua.plotting import plot_errors_vs_sound_speeds, createFigure, updateFigure
+from TorchDbua.processing import load_dataset, makeImage, bmode_title
+from TorchDbua.execution_manager import ExecutionManager
 
 
 def get_optimal_sos(config: DBUAConfig, execution_manager: ExecutionManager):
