@@ -359,6 +359,7 @@ if __name__ == "__main__":
     # Run all examples, keeping going if any single sample fails
     results = {}
     for sample in CTRUE.keys():
+        if sample not in ["checker2", "checker8"]: continue
         try:
             c, metrics = main(sample, LOSS)
             np.save(results_dir / f"{sample}-jax.npy", np.array(c))
@@ -367,6 +368,6 @@ if __name__ == "__main__":
             results[sample] = {"error": str(e)}
 
     # Write the final metrics / errors as JSON
-    with open(results_dir / "results-jax.json", "w") as f:
+    with open(results_dir / "results-jax-additional.json", "w") as f:
         json.dump(results, f, indent=2)
 
