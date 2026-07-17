@@ -30,7 +30,8 @@ def get_optimal_sos(config: DBUAConfig, execution_manager: ExecutionManager):
         dpe = np.array([float(execution_manager.pe_loss(const_c(cc))) for cc in c0])
 
     # Plot global sound speed error
-    plot_errors_vs_sound_speeds(c0, dsb, dlc, dcf, dpe, config.sample)
+    if config.plot:
+        plot_errors_vs_sound_speeds(c0, dsb, dlc, dcf, dpe, config.sample)
 
     return torch.nn.Parameter(const_c(c0[int(np.argmin(dpe))]))
 
@@ -43,21 +44,22 @@ def optimization_loop(optimizer, c, execution_manager: ExecutionManager):
     xc, zc = execution_manager.get_xc_zc()
     nxi, nzi = execution_manager.get_nxi_nzi()
 
-    # Bind the fixed acquisition data / geometry into plain c -> value callables
-    # for the plotting layer, so it stays decoupled from the ExecutionManager.
-    em = execution_manager
-    make_image = partial(makeImage, em.iqdata, em.t0, em.fs, em.fd, em._tof_image)
-    make_title = partial(bmode_title, em.sb_loss, em.cf_loss, em.pe_loss)
+    if config.plot:
+        # Bind the fixed acquisition data / geometry into plain c -> value callables
+        # for the plotting layer, so it stays decoupled from the ExecutionManager.
+        em = execution_manager
+        make_image = partial(makeImage, em.iqdata, em.t0, em.fs, em.fd, em._tof_image)
+        make_title = partial(bmode_title, em.sb_loss, em.cf_loss, em.pe_loss)
 
-    # Create the figure once, outside the optimization loop
-    handles = createFigure(make_image, make_title, c, 0, c_true, xi, zi, xc, zc, nxi, nzi, nxc, nzc)
+        # Create the figure once, outside the optimization loop
+        handles = createFigure(make_image, make_title, c, 0, c_true, xi, zi, xc, zc, nxi, nzi, nxc, nzc)
 
     for i in tqdm(range(config.n_iters)):
         optimizer.zero_grad()
         objective = execution_manager.loss(c, config.loss_name)
         objective.backward()
         optimizer.step()
-        if i % 10 == 0:
+        if config.plot and i % 10 == 0:
             # Reuse the existing figure
             updateFigure(make_image, make_title, c, i + 1, c_true, config.sample, nxi, nzi, nxc, nzc, handles)
 
@@ -80,10 +82,12 @@ def compute_final_metrics(c, execution_manager: ExecutionManager, config: DBUACo
     c_true = config.ctrue[config.sample]
     if c_true > 0:  # uniform phantom: error w.r.t. the known constant real value
         c_np = c.detach().cpu().numpy()
+        abs_err = np.abs(c_np - c_true).ravel()
         metrics["c_true"] = float(c_true)
         metrics["mean_c"] = float(np.mean(c_np))
-        metrics["mae"] = float(np.mean(np.abs(c_np - c_true)))
-        metrics["rmse"] = float(np.sqrt(np.mean((c_np - c_true) ** 2)))
+        metrics["mae"] = float(np.mean(abs_err))
+        # Standard error of the MAE: sample std of per-node abs errors / sqrt(N).
+        metrics["mae_se"] = float(np.std(abs_err, ddof=1) / np.sqrt(abs_err.size))
 
     return metrics
 

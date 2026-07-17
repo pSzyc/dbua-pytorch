@@ -134,7 +134,7 @@ def plot_errors_vs_sound_speeds(c0, dsb, dlc, dcf, dpe, sample):
     plt.clf()
 
 
-def main(sample, loss_name):
+def main(sample, loss_name, plot=True):
 
     assert (
         sample in CTRUE
@@ -235,7 +235,8 @@ def main(sample, loss_name):
     c = c0[np.argmin(dpe)] * jnp.ones((SOUND_SPEED_NXC, SOUND_SPEED_NZC))
 
     # Plot global sound speed error
-    plot_errors_vs_sound_speeds(c0, dsb, dlc, dcf, dpe, sample)
+    if plot:
+        plot_errors_vs_sound_speeds(c0, dsb, dlc, dcf, dpe, sample)
 
     # Create the optimizer
     opt = OptaxSolver(opt=optax.amsgrad(LEARNING_RATE),
@@ -243,9 +244,10 @@ def main(sample, loss_name):
     state = opt.init_state(c)
 
     # Create the figure writer
-    fig, _ = plt.subplots(1, 2, figsize=[9, 4])
-    vobj = FFMpegWriter(fps=30)
-    vobj.setup(fig, "videos/%s_opt%s_jax.mp4" % (sample, loss_name), dpi=144)
+    if plot:
+        fig, _ = plt.subplots(1, 2, figsize=[9, 4])
+        vobj = FFMpegWriter(fps=30)
+        vobj.setup(fig, "videos/%s_opt%s_jax.mp4" % (sample, loss_name), dpi=144)
 
     # Create the image axes for plotting
     ximm = xi[:, 0] * 1e3
@@ -325,14 +327,16 @@ def main(sample, loss_name):
         plt.savefig(f"scratch/{sample}_jax.png")
 
     # Initialize figure
-    handles = makeFigure(c, 0)
+    handles = makeFigure(c, 0) if plot else None
 
     # Optimization loop
     for i in tqdm(range(N_ITERS)):
         c, state = opt.update(c, state)
-        makeFigure(c, i + 1, handles)  # Update figure
-        vobj.grab_frame()  # Add to video writer
-    vobj.finish()  # Close video writer
+        if plot:
+            makeFigure(c, i + 1, handles)  # Update figure
+            vobj.grab_frame()  # Add to video writer
+    if plot:
+        vobj.finish()  # Close video writer
 
     # Final cost-function errors on the converged sound-speed map
     metrics = {
@@ -344,10 +348,12 @@ def main(sample, loss_name):
     # For uniform phantoms, error w.r.t. the known constant real value
     if CTRUE[sample] > 0:
         c_np = np.array(c)
+        abs_err = np.abs(c_np - CTRUE[sample]).ravel()
         metrics["c_true"] = float(CTRUE[sample])
         metrics["mean_c"] = float(np.mean(c_np))
-        metrics["mae"] = float(np.mean(np.abs(c_np - CTRUE[sample])))
-        metrics["rmse"] = float(np.sqrt(np.mean((c_np - CTRUE[sample]) ** 2)))
+        metrics["mae"] = float(np.mean(abs_err))
+        # Standard error of the MAE: sample std of per-node abs errors / sqrt(N).
+        metrics["mae_se"] = float(np.std(abs_err, ddof=1) / np.sqrt(abs_err.size))
 
     return c, metrics
 
