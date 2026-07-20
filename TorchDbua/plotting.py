@@ -108,8 +108,11 @@ def createFigure(make_image, bmode_title, c, i, c_true, xi, zi, xc, zc, nxi, nzi
 
 
 @torch.no_grad()
-def updateFigure(make_image, bmode_title, c, i, c_true, sample, nxi, nzi, nxc, nzc, handles):
-    """Update the figure created by createFigure in place and save it to disk."""
+def updateFigure(make_image, bmode_title, c, i, c_true, sample, loss_name, nxi, nzi, nxc, nzc, handles):
+    """Update the figure created by createFigure in place and save it to disk.
+
+    The filename carries the driving ``loss_name`` so a phantom's runs under
+    different losses don't overwrite one another."""
     fig, hbi, hci, hbt, hct, bmax = handles
 
     bimg, cimg = _display_images(make_image, c, bmax, nxi, nzi, nxc, nzc)
@@ -119,4 +122,4 @@ def updateFigure(make_image, bmode_title, c, i, c_true, sample, nxi, nzi, nxc, n
     hbt.set_text(bmode_title(c))
     hct.set_text(_sos_title(i, cimg, c_true))
 
-    fig.savefig(f"scratch/{sample}_torch.png")
+    fig.savefig(f"scratch/{sample}_{loss_name}_torch.png")

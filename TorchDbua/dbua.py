@@ -61,7 +61,11 @@ def optimization_loop(optimizer, c, execution_manager: ExecutionManager):
         optimizer.step()
         if config.plot and i % 10 == 0:
             # Reuse the existing figure
-            updateFigure(make_image, make_title, c, i + 1, c_true, config.sample, nxi, nzi, nxc, nzc, handles)
+            updateFigure(make_image, make_title, c, i + 1, c_true, config.sample, config.loss_name, nxi, nzi, nxc, nzc, handles)
+
+    if config.plot:
+        # Save the converged frame (the loop only saves every 10th iteration).
+        updateFigure(make_image, make_title, c, config.n_iters, c_true, config.sample, config.loss_name, nxi, nzi, nxc, nzc, handles)
 
 
 def compute_final_metrics(c, execution_manager: ExecutionManager, config: DBUAConfig):

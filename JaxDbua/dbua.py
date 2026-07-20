@@ -324,7 +324,7 @@ def main(sample, loss_name, plot=True):
                 hct.set_text("Iteration %d: Mean value %.2f" %
                              (i, np.mean(cimg)))
 
-        plt.savefig(f"scratch/{sample}_jax.png")
+        plt.savefig(f"scratch/{sample}_{loss_name}_jax.png")
 
     # Initialize figure
     handles = makeFigure(c, 0) if plot else None
