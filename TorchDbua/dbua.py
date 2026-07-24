@@ -8,7 +8,7 @@ import torch
 from tqdm import tqdm
 
 from TorchDbua.conf import DBUAConfig
-from TorchDbua.plotting import plot_errors_vs_sound_speeds, createFigure, updateFigure
+from TorchDbua.plotting import plot_errors_vs_sound_speeds, createFigure, updateFigure, closeFigure
 from TorchDbua.processing import load_dataset, makeImage, bmode_title
 from TorchDbua.execution_manager import ExecutionManager
 
@@ -66,6 +66,8 @@ def optimization_loop(optimizer, c, execution_manager: ExecutionManager):
     if config.plot:
         # Save the converged frame (the loop only saves every 10th iteration).
         updateFigure(make_image, make_title, c, config.n_iters, c_true, config.sample, config.loss_name, nxi, nzi, nxc, nzc, handles)
+        # Release the figure so it doesn't accumulate across the sample sweep.
+        closeFigure(handles)
 
 
 def compute_final_metrics(c, execution_manager: ExecutionManager, config: DBUAConfig):

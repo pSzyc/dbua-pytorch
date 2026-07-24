@@ -1,14 +1,14 @@
-"""Build the MAE comparison table from the accuracy experiment in ``run.py``.
+"""Build the MAE comparison table from ``run.py``'s proposed-loss sweep.
 
 The SoS / B-mode figures are rendered by the backends themselves (``run.py``
-runs with ``plot=True``); this file only turns ``results/mae-{backend}.json``
-into a MAE +/- SE table over the phantom x loss grid, both backends.
+runs with ``plot=True``); this file only turns ``results/phantoms-{backend}.json``
+into a MAE (+/- SE) table over every phantom whose ground-truth speed is a known
+constant (homogeneous phantoms), one column per backend. Heterogeneous phantoms
+have no single ground-truth speed and are dropped.
 """
 
 import json
 from pathlib import Path
-
-LOSSES = ["sb", "lc", "cf", "pe"]
 
 RESULTS_DIR = Path("results")
 COMPARISON_DIR = Path("comparison")
@@ -23,32 +23,35 @@ def _fmt_mae(entry: dict) -> str:
     return f"{mae:.2f}±{se:.2f}"
 
 
+def _has_mae(entry: dict) -> bool:
+    return bool(entry) and "error" not in entry and entry.get("mae") is not None
+
+
 def mae_table(jax: dict, torch: dict) -> str:
-    """MAE +/- SE over the phantom x loss grid; each cell is jax / torch."""
-    samples = sorted(set(jax) | set(torch))
-    col_w = 20
-    header = f"{'phantom':<10} " + " ".join(f"{l:<{col_w}}" for l in LOSSES)
-    sub = f"{'(jax / torch)':<10}"
-    lines = [header, sub, "-" * len(header)]
+    """MAE +/- SE per phantom, one column each for jax and torch."""
+    samples = sorted(
+        s for s in set(jax) | set(torch)
+        if _has_mae(jax.get(s, {})) or _has_mae(torch.get(s, {}))
+    )
+    col_w = 14
+    header = f"{'phantom':<16} {'jax':<{col_w}} {'torch':<{col_w}}"
+    lines = [header, "-" * len(header)]
     for s in samples:
-        cells = []
-        for loss in LOSSES:
-            j = _fmt_mae(jax.get(s, {}).get(loss, {}))
-            t = _fmt_mae(torch.get(s, {}).get(loss, {}))
-            cells.append(f"{j + ' / ' + t:<{col_w}}")
-        lines.append(f"{s:<10} " + " ".join(cells))
+        j = _fmt_mae(jax.get(s, {}))
+        t = _fmt_mae(torch.get(s, {}))
+        lines.append(f"{s:<16} {j:<{col_w}} {t:<{col_w}}")
     return "\n".join(lines)
 
 
 if __name__ == "__main__":
     COMPARISON_DIR.mkdir(exist_ok=True)
 
-    with open(RESULTS_DIR / "mae-jax.json") as f:
-        jax_mae = json.load(f)
-    with open(RESULTS_DIR / "mae-torch.json") as f:
-        torch_mae = json.load(f)
+    with open(RESULTS_DIR / "phantoms-jax.json") as f:
+        jax_phantoms = json.load(f)
+    with open(RESULTS_DIR / "phantoms-torch.json") as f:
+        torch_phantoms = json.load(f)
 
-    table = mae_table(jax_mae, torch_mae)
+    table = mae_table(jax_phantoms, torch_phantoms)
     print(table)
     with open(COMPARISON_DIR / "mae_table.txt", "w") as f:
         f.write(table + "\n")

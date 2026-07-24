@@ -1,29 +1,23 @@
-"""Run the DBUA optimization for two experiments and save the converged maps.
+"""Run the DBUA optimization with the proposed loss over every phantom.
 
-Experiments
------------
-1. accuracy  : every focusing loss driving reconstruction on every constant-speed
-               (homogeneous-SOS) phantom, both backends, ``N_ITERS`` iterations.
-               We record only what identifies the run and how accurate it was:
-               the driving cost function, the phantom, and the MAE (± standard
-               error) of the recovered sound speed against the phantom's known
-               constant. The per-cost-function scores on the converged map are
-               intentionally dropped -- this experiment is about reconstruction
-               accuracy, not focusing quality.
-2. recovery  : the proposed loss (``EXP2_LOSS``) on every heterogeneous phantom,
-               both backends. These have no single ground-truth speed, so there
-               is no MAE -- we just save the recovered sound-speed map for
-               qualitative comparison.
+A single experiment: the proposed loss (``LOSS``, phase error) driving
+reconstruction on every phantom -- homogeneous (constant-speed) and
+heterogeneous alike -- on both backends, ``N_ITERS`` iterations.
 
-Both experiments run with ``plot=True`` so each backend saves its own SoS /
-B-mode figure (``scratch/{sample}_{loss}_{backend}.png``) and loss-vs-speed
-survey -- we don't re-render anything here.
+For each run we keep the full metrics dict ``main()`` returns: the four
+focusing-loss scores evaluated on the converged map, plus -- for homogeneous
+phantoms, whose ground-truth speed is a known constant -- the MAE (+/- standard
+error) of the recovered sound speed. Heterogeneous phantoms have no single
+ground-truth speed, so they simply carry no MAE.
+
+Runs with ``plot=True`` so each backend saves its own SoS / B-mode figure
+(``scratch/{sample}_{loss}_{backend}.png``) and loss-vs-speed survey.
 
 Results layout (under ``results/``)
     {sample}-{loss}-{backend}.npy   converged sound-speed map
-    mae-{backend}.json              accuracy experiment -> {sample: {loss: {mae, mae_se}}}
+    phantoms-{backend}.json         {sample: {sb, lc, cf, pe[, c_true, mean_c, mae, mae_se]}}
 
-``analyse.py`` turns ``mae-{backend}.json`` into the MAE comparison table.
+``analyse.py`` turns ``phantoms-{backend}.json`` into the comparison table.
 """
 
 import gc
@@ -32,15 +26,11 @@ from pathlib import Path
 
 import numpy as np
 
-# Cost functions driving the optimization (each run is driven by exactly one).
-LOSSES = ["sb", "lc", "cf", "pe"]
+# Loss driving the optimization (the proposed method, phase error).
+LOSS = "pe"
 
 # Gradient-descent iterations per run.
 N_ITERS = 300
-
-# Driving loss for the heterogeneous-phantom recovery experiment (the proposed
-# method, phase error).
-EXP2_LOSS = "pe"
 
 BACKENDS = ["torch", "jax"]
 
@@ -78,37 +68,17 @@ def _safe(runner, sample: str, loss: str, n_iters: int) -> dict:
         return {"error": str(e)}
 
 
-def _mae_only(metrics: dict) -> dict:
-    """Keep just the reconstruction accuracy, dropping cost-function scores."""
-    if "error" in metrics:
-        return metrics
-    return {"mae": metrics.get("mae"), "mae_se": metrics.get("mae_se")}
+def run_phantoms(backend: str, samples: list[str]) -> dict:
+    """Run the proposed loss on every phantom for one backend.
 
-
-def run_accuracy(backend: str, samples: list[str]) -> dict:
-    """Experiment 1: full loss x homogeneous-phantom grid for one backend.
-
-    Returns ``{sample: {loss: {mae, mae_se}}}``.
+    Returns ``{sample: metrics}`` -- the full metrics dict ``main()`` returns
+    (focusing scores + MAE where a ground-truth constant exists).
     """
     runner = _RUNNERS[backend]
-    results = {}
-    for sample in samples:
-        results[sample] = {
-            loss: _mae_only(_safe(runner, sample, loss, N_ITERS))
-            for loss in LOSSES
-        }
-    return results
-
-
-def run_recovery(backend: str, samples: list[str]) -> None:
-    """Experiment 2: the proposed loss on each heterogeneous phantom.
-
-    No ground-truth constant exists, so nothing is recorded -- ``_safe`` still
-    writes the converged sound-speed map (``.npy``) as a side effect.
-    """
-    runner = _RUNNERS[backend]
-    for sample in samples:
-        _safe(runner, sample, EXP2_LOSS, N_ITERS)
+    return {
+        sample: _safe(runner, sample, LOSS, N_ITERS)
+        for sample in samples
+    }
 
 
 def free_gpu() -> None:
@@ -128,16 +98,10 @@ if __name__ == "__main__":
 
     from TorchDbua.conf import DBUAConfig
 
-    ctrue = DBUAConfig().ctrue
-    # Homogeneous phantoms carry a known constant ground-truth speed (> 0);
-    # heterogeneous phantoms record 0.
-    homogeneous = [s for s, c_true in ctrue.items() if c_true > 0]
-    heterogeneous = [s for s, c_true in ctrue.items() if c_true == 0]
+    samples = list(DBUAConfig().ctrue.keys())
 
     for backend in BACKENDS:
-        accuracy = run_accuracy(backend, homogeneous)
-        with open(RESULTS_DIR / f"mae-{backend}.json", "w") as f:
-            json.dump(accuracy, f, indent=2)
-
-        run_recovery(backend, heterogeneous)
+        phantoms = run_phantoms(backend, samples)
+        with open(RESULTS_DIR / f"phantoms-{backend}.json", "w") as f:
+            json.dump(phantoms, f, indent=2)
         free_gpu()

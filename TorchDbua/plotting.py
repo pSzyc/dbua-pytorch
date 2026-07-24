@@ -123,3 +123,11 @@ def updateFigure(make_image, bmode_title, c, i, c_true, sample, loss_name, nxi, 
     hct.set_text(_sos_title(i, cimg, c_true))
 
     fig.savefig(f"scratch/{sample}_{loss_name}_torch.png")
+
+
+def closeFigure(handles):
+    """Release the figure created by createFigure.
+
+    main() creates one figure per sample; without this pyplot retains every
+    figure across the sample sweep and warns once more than 20 are open."""
+    plt.close(handles[0])
