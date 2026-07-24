@@ -10,3 +10,5 @@ scratch_frames/
 *.jpg
 *.mat
 CLAUDE.md
+results
+*txt

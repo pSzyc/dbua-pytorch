@@ -1,16 +1,17 @@
+import json
 from pathlib import Path
 import numpy as np
 import jax.numpy as jnp
 from jax import jit
-from Original.das import das
-from Original.paths import time_of_flight
+from JaxDbua.das import das
+from JaxDbua.paths import time_of_flight
 from hdf5storage import loadmat
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 from matplotlib.animation import FFMpegWriter
 from jaxopt import OptaxSolver
 import optax
-from Original.losses import (
+from JaxDbua.losses import (
     lag_one_coherence,
     coherence_factor,
     phase_error,
@@ -129,12 +130,11 @@ def plot_errors_vs_sound_speeds(c0, dsb, dlc, dcf, dpe, sample):
     plt.ylabel("Loss function")
     plt.title(sample)
     plt.legend()
-    plt.savefig(f"images/losses_{sample}.png")
-    plt.savefig("scratch.png")
+    plt.savefig(f"images/losses_jax_{sample}.png")
     plt.clf()
 
 
-def main(sample, loss_name):
+def main(sample, loss_name, plot=True):
 
     assert (
         sample in CTRUE
@@ -235,7 +235,8 @@ def main(sample, loss_name):
     c = c0[np.argmin(dpe)] * jnp.ones((SOUND_SPEED_NXC, SOUND_SPEED_NZC))
 
     # Plot global sound speed error
-    plot_errors_vs_sound_speeds(c0, dsb, dlc, dcf, dpe, sample)
+    if plot:
+        plot_errors_vs_sound_speeds(c0, dsb, dlc, dcf, dpe, sample)
 
     # Create the optimizer
     opt = OptaxSolver(opt=optax.amsgrad(LEARNING_RATE),
@@ -243,9 +244,10 @@ def main(sample, loss_name):
     state = opt.init_state(c)
 
     # Create the figure writer
-    fig, _ = plt.subplots(1, 2, figsize=[9, 4])
-    vobj = FFMpegWriter(fps=30)
-    vobj.setup(fig, "videos/%s_opt%s.mp4" % (sample, loss_name), dpi=144)
+    if plot:
+        fig, _ = plt.subplots(1, 2, figsize=[9, 4])
+        vobj = FFMpegWriter(fps=30)
+        vobj.setup(fig, "videos/%s_opt%s_jax.mp4" % (sample, loss_name), dpi=144)
 
     # Create the image axes for plotting
     ximm = xi[:, 0] * 1e3
@@ -322,26 +324,56 @@ def main(sample, loss_name):
                 hct.set_text("Iteration %d: Mean value %.2f" %
                              (i, np.mean(cimg)))
 
-        plt.savefig(f"scratch/{sample}.png")
+        plt.savefig(f"scratch/{sample}_{loss_name}_jax.png")
 
     # Initialize figure
-    handles = makeFigure(c, 0)
+    handles = makeFigure(c, 0) if plot else None
 
     # Optimization loop
     for i in tqdm(range(N_ITERS)):
         c, state = opt.update(c, state)
-        makeFigure(c, i + 1, handles)  # Update figure
-        vobj.grab_frame()  # Add to video writer
-    vobj.finish()  # Close video writer
+        if plot:
+            makeFigure(c, i + 1, handles)  # Update figure
+            vobj.grab_frame()  # Add to video writer
+    if plot:
+        vobj.finish()  # Close video writer
 
-    return c
+    # Final cost-function errors on the converged sound-speed map
+    metrics = {
+        "sb": float(sb_loss(c)),
+        "lc": float(lc_loss(c)),
+        "cf": float(cf_loss(c)),
+        "pe": float(pe_loss(c)),
+    }
+    # For uniform phantoms, error w.r.t. the known constant real value
+    if CTRUE[sample] > 0:
+        c_np = np.array(c)
+        abs_err = np.abs(c_np - CTRUE[sample]).ravel()
+        metrics["c_true"] = float(CTRUE[sample])
+        metrics["mean_c"] = float(np.mean(c_np))
+        metrics["mae"] = float(np.mean(abs_err))
+        # Standard error of the MAE: sample std of per-node abs errors / sqrt(N).
+        metrics["mae_se"] = float(np.std(abs_err, ddof=1) / np.sqrt(abs_err.size))
+
+    return c, metrics
 
 
 if __name__ == "__main__":
-    main(SAMPLE, LOSS)
+    results_dir = Path("results")
+    results_dir.mkdir(exist_ok=True)
 
-    # # Run all examples
-    # for sample in CTRUE.keys():
-    #     print(sample)
-    #     main(sample, LOSS)
+    # Run all examples, keeping going if any single sample fails
+    results = {}
+    for sample in CTRUE.keys():
+        if sample not in ["checker2", "checker8"]: continue
+        try:
+            c, metrics = main(sample, LOSS)
+            np.save(results_dir / f"{sample}-jax.npy", np.array(c))
+            results[sample] = metrics
+        except Exception as e:
+            results[sample] = {"error": str(e)}
+
+    # Write the final metrics / errors as JSON
+    with open(results_dir / "results-jax-additional.json", "w") as f:
+        json.dump(results, f, indent=2)
 

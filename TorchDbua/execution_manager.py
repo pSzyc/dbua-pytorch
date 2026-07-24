@@ -2,15 +2,15 @@ from typing import Callable
 
 import torch
 
-from PyTorch.conf import DBUAConfig
-from PyTorch.loss_functions import (
+from TorchDbua.conf import DBUAConfig
+from TorchDbua.loss_functions import (
     lag_one_coherence,
     coherence_factor,
     phase_error,
     total_variation,
     speckle_brightness,
 )
-from PyTorch.paths import time_of_flight
+from TorchDbua.paths import time_of_flight
 
 
 class ExecutionManager:

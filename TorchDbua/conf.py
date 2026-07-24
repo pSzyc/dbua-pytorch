@@ -82,6 +82,12 @@ class DBUAConfig:
     #                "two_layer", "checker2", "checker8")
     sample: str = "checker2"            # Dataset to reconstruct
 
+    # --- Output --------------------------------------------------------------
+    # When False, skip all figure/video output (the loss-vs-sound-speed survey
+    # plot and the per-iteration B-mode / sound-speed frames in scratch/). Useful
+    # for batch sweeps where the diagnostics are pure overhead.
+    plot: bool = True
+
     # --- Data & compute ------------------------------------------------------
     data_dir: Path = Path("./data")     # Base dir of refocused plane-wave datasets
     ctrue: dict = field(default_factory=lambda: dict(_CTRUE_DEFAULT))  # Ground-truth c per dataset

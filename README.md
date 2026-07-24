@@ -15,12 +15,19 @@ This is the official implementation of the paper "Differentiable Beamforming for
 
 [![dbua_video](https://img.youtube.com/vi/cUoAsEA5snE/0.jpg)](https://www.youtube.com/watch?v=cUoAsEA5snE)
 
+> **This fork adds a PyTorch port and migrates dependency management to [uv](https://docs.astral.sh/uv/).**
+> The original **JAX** reference implementation lives in `JaxDbua/`, and a numerically
+> faithful **PyTorch** port lives in `TorchDbua/`. The two mirror each other file-for-file
+> (`dbua.py`, `das.py`, `paths.py`, `losses.py`), so you can run either backend.
+
 ## High-Level Overview
 
- * [dbua.py](https://github.com/waltsims/dbua/blob/main/dbua.py) - main experiment file. Adjust the global configuration parameters to run experiments.
- * [das.py](https://github.com/waltsims/dbua/blob/main/das.py) -  Delay-and-sum IQ data according to a given time delay profile.
- * [paths.py](https://github.com/waltsims/dbua/blob/main/paths.py) - Calculates the time-of-flight between two points  according to a speed-of-sound map.
- * [losses.py](https://github.com/waltsims/dbua/blob/main/losses.py) - Contains the proposed phase-error and auxiliary loss functions.
+Both backends share the same file layout (`JaxDbua/` = JAX reference, `TorchDbua/` = PyTorch port):
+
+ * `dbua.py` - main experiment file. Adjust the configuration to run experiments (JAX: module-level globals; PyTorch: the `DBUAConfig` dataclass in `TorchDbua/conf.py`).
+ * `das.py` -  Delay-and-sum IQ data according to a given time delay profile.
+ * `paths.py` - Calculates the time-of-flight between two points  according to a speed-of-sound map.
+ * `losses.py` - Contains the proposed phase-error and auxiliary loss functions.
 
 ## Getting Started
 
@@ -30,14 +37,22 @@ This project requires ffmpeg to be installed to save mp4 files. If you have not 
 sudo apt-get install ffmpeg
 ```
 
-You can install the required Python dependencies like this:
+Dependencies are managed with [uv](https://docs.astral.sh/uv/). Install uv (if you
+haven't already) and let it create the virtual environment (`.venv/`) from
+`pyproject.toml` / `uv.lock`:
 
 ```bash
-micromamba env create -f environment.yml
-micromamba activate dbua
+# Install uv (see https://docs.astral.sh/uv/getting-started/installation/)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Create the environment and install all dependencies (PyTorch + JAX)
+uv sync
 ```
 
-Then, install JAX using the instructions for the pip GPU installation method found [here](https://jax.readthedocs.io/en/latest/installation.html#pip-installation-gpu-cuda-installed-via-pip-easier).
+On Linux this pulls `torch` from the CUDA 12.8 wheel index and installs `jax[cuda12]`
+for the reference/benchmark; both backends are set up by a single `uv sync`. Prefix
+any command with `uv run` to execute it inside the managed environment — there is no
+separate "activate" step required.
 
 ## Reproducing results
 
@@ -61,11 +76,31 @@ data
 └── two_layer.mat
 ```
 
-Run the program with this command:
+Run either backend as a module (module form is required for the package-relative
+imports):
 
 ```bash
-python dbua.py
+uv run python -m TorchDbua.dbua      # PyTorch port
+uv run python -m JaxDbua.dbua        # JAX reference
 ```
+
+Each run sweeps a global sound speed to initialize the map, optimizes for `N_ITERS`,
+and writes diagnostic figures to `images/` / `scratch/` plus an optimization video to
+`videos/` (pass `plot=False` — `DBUAConfig(plot=False)` for PyTorch, `main(..., plot=False)`
+for JAX — to skip all figure/video output). Converged sound-speed maps and final metrics
+are written to `results/`.
+
+To reproduce the two side-by-side comparison experiments across both backends, run the
+harness (it disables per-iteration plotting for speed):
+
+```bash
+uv run python run.py
+```
+
+Experiment knobs live at the top of each `dbua.py` (JAX globals) or in
+`TorchDbua/conf.py` (the `DBUAConfig` dataclass): `LOSS`/`loss_name`
+(`"pe"`/`"sb"`/`"cf"`/`"lc"`), `SAMPLE`/`sample`, `N_ITERS`/`n_iters`,
+`LEARNING_RATE`/`learning_rate`.
 
 ### Citation
 

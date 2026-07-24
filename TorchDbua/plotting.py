@@ -3,8 +3,6 @@ import torch
 import time
 import numpy as np
 
-from PyTorch.processing import makeImage, loss
-
 DEVICE = torch.device(
     "cuda" if torch.cuda.is_available()
     else "mps" if torch.backends.mps.is_available()
@@ -42,20 +40,15 @@ def _np(x):
     return np.asarray(x)
 
 
-def _display_images(c, bmax, nxi, nzi, nxc, nzc):
+def _display_images(make_image, c, bmax, nxi, nzi, nxc, nzc):
     """Log-compressed B-mode image and reshaped sound-speed image for plotting."""
-    b = _np(makeImage(c))
+    b = _np(make_image(c))
     bimg = b / bmax
     bimg = bimg + 1e-10 * (bimg == 0)  # Avoid nans
     bimg = 20 * np.log10(bimg)
     bimg = np.reshape(bimg, (nxi, nzi)).T
     cimg = np.reshape(_np(c), (nxc, nzc)).T
     return bimg, cimg
-
-
-def _bmode_title(c):
-    return "SB: %.2f, CF: %.3f, PE: %.3f" % (
-        float(loss(c, "sb")), float(loss(c, "cf")), float(loss(c, "pe")))
 
 
 def _sos_title(i, cimg, c_true):
@@ -65,9 +58,15 @@ def _sos_title(i, cimg, c_true):
 
 
 @torch.no_grad()
-def createFigure(c, i, c_true, xi, zi, xc, zc, nxi, nzi, nxc, nzc):
+def createFigure(make_image, bmode_title, c, i, c_true, xi, zi, xc, zc, nxi, nzi, nxc, nzc):
     """Create the two-panel (B-mode + sound speed) figure once and return the
-    handles needed to update it in place on subsequent iterations."""
+    handles needed to update it in place on subsequent iterations.
+
+    ``make_image(c) -> tensor`` renders the B-mode image and ``bmode_title(c) ->
+    str`` renders its title; both are evaluated here under ``@torch.no_grad()``,
+    which matters: torch.compile guards on grad-mode, so evaluating the losses
+    with grad enabled would force a second, grad-enabled recompile of the
+    beamformer purely to draw a figure."""
 
     # Create the image axes for plotting
     ximm = _np(xi[:, 0] * 1e3)
@@ -83,19 +82,19 @@ def createFigure(c, i, c_true, xi, zi, xc, zc, nxi, nzi, nxc, nzc):
     nrep = 30
     tic = time.perf_counter_ns()
     for _ in range(nrep):
-        _ = makeImage(c)
+        _ = make_image(c)
     if DEVICE.type == "cuda":
         torch.cuda.synchronize()
     toc = time.perf_counter_ns()
     print("torchbf runs at %.1f fps." % (nrep / ((toc - tic) * 1e-9)))
 
-    bmax = np.max(_np(makeImage(c)))
-    bimg, cimg = _display_images(c, bmax, nxi, nzi, nxc, nzc)
+    bmax = np.max(_np(make_image(c)))
+    bimg, cimg = _display_images(make_image, c, bmax, nxi, nzi, nxc, nzc)
 
     fig, _ = plt.subplots(1, 2, figsize=[9, 4])
     plt.subplot(121)
     hbi = imagesc(ximm, zimm, bimg, bdr, cmap="bone", interpolation="bicubic")
-    hbt = plt.title(_bmode_title(c))
+    hbt = plt.title(bmode_title(c))
     plt.xlim(ximm[0], ximm[-1])
     plt.ylim(zimm[-1], zimm[0])
     plt.subplot(122)
@@ -109,15 +108,26 @@ def createFigure(c, i, c_true, xi, zi, xc, zc, nxi, nzi, nxc, nzc):
 
 
 @torch.no_grad()
-def updateFigure(c, i, c_true, sample, nxi, nzi, nxc, nzc, handles):
-    """Update the figure created by createFigure in place and save it to disk."""
+def updateFigure(make_image, bmode_title, c, i, c_true, sample, loss_name, nxi, nzi, nxc, nzc, handles):
+    """Update the figure created by createFigure in place and save it to disk.
+
+    The filename carries the driving ``loss_name`` so a phantom's runs under
+    different losses don't overwrite one another."""
     fig, hbi, hci, hbt, hct, bmax = handles
 
-    bimg, cimg = _display_images(c, bmax, nxi, nzi, nxc, nzc)
+    bimg, cimg = _display_images(make_image, c, bmax, nxi, nzi, nxc, nzc)
 
     hbi.set_data(bimg)
     hci.set_data(cimg)
-    hbt.set_text(_bmode_title(c))
+    hbt.set_text(bmode_title(c))
     hct.set_text(_sos_title(i, cimg, c_true))
 
-    fig.savefig(f"scratch/{sample}.png")
+    fig.savefig(f"scratch/{sample}_{loss_name}_torch.png")
+
+
+def closeFigure(handles):
+    """Release the figure created by createFigure.
+
+    main() creates one figure per sample; without this pyplot retains every
+    figure across the sample sweep and warns once more than 20 are open."""
+    plt.close(handles[0])

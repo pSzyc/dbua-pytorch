@@ -1,11 +1,9 @@
 from functools import partial
 import torch
-from torch.utils.checkpoint import checkpoint as grad_checkpoint
 
 
 @partial(torch.compile)
-def das(iqraw, tA, tB, fs, fd, A=None, B=None, apoA=1, apoB=1, interp="cubic",
-        checkpoint=True):
+def das(iqraw, tA, tB, fs, fd, A=None, B=None, apoA=1, apoB=1, interp="cubic"):
     """
     Delay-and-sum IQ data according to a given time delay profile.
     @param iqraw   [na, nb, nsamps]  Raw IQ data (baseband)
@@ -18,16 +16,6 @@ def das(iqraw, tA, tB, fs, fd, A=None, B=None, apoA=1, apoB=1, interp="cubic",
     @param apoA    [na, *pixdims]    Broadcastable apodization on dimension 0 of iq
     @param apoB    [nb, *pixdims]    Broadcastable apodization on dimension 1 of iq
     @param interp  string            Interpolation method to use
-    @param checkpoint bool           Strategy for walking the a aperture:
-        True (default): loop one a-row at a time, gradient-checkpointing each
-            (recompute in backward instead of store). Bounds activation memory
-            so the full [na, nb, *pixdims] tensor is never materialized, but
-            torch.compile UNROLLS the loop into na copies, so warmup grows with
-            na. Use for large grids (image geometry) and training.
-        False: vmap over the a aperture. Body is traced once, so warmup is flat
-            in na and Inductor fuses across the aperture, but the full
-            [na, *nb_out, *pixdims] batch is materialized (memory hungry). Use
-            when the batch fits (patch/survey geometry).
     @return iqfoc  [*na_out, *nb_out, *pixel_dims]   Beamformed IQ data
 
     The tensors A and B specify how to combine the "elements" in dimensions 0 and 1 of
@@ -91,26 +79,10 @@ def das(iqraw, tA, tB, fs, fd, A=None, B=None, apoA=1, apoB=1, interp="cubic",
         return (torch.tensordot(Bc, vr, dims=([-1], [0])),
                 torch.tensordot(Bc, vi, dims=([-1], [0])))
 
-    if checkpoint:
-        # Walk the a aperture one row at a time so the full [na, nb, *pixdims]
-        # round-trip tensor is never materialized. Each row is gradient-
-        # checkpointed (recomputed in backward instead of stored) to bound
-        # activation memory -- the torch analog of JAX's @checkpoint + lax.map.
-        #
-        # NOTE: Python's builtin map() is NOT jax.lax.map: map(das_b, (iqraw, tA))
-        # would call das_b(iqraw) then das_b(tA). Iterate the a axis explicitly.
-        rows_r, rows_i = [], []
-        for i in range(na):
-            r, im = grad_checkpoint(das_b, (iqr[i], iqi[i], tA[i]), use_reentrant=False)
-            rows_r.append(r)
-            rows_i.append(im)
-        stacked_r = torch.stack(rows_r, dim=0)
-        stacked_i = torch.stack(rows_i, dim=0)
-    else:
-        # No memory bound requested: vectorize over the a aperture too. This
-        # materializes the full [na, *nb_out, *pixdims] batch but drops the
-        # Python loop, letting Inductor fuse across the whole aperture.
-        stacked_r, stacked_i = torch.vmap(das_b)((iqr, iqi, tA))
+    # Vectorize over the a aperture. This materializes the full
+    # [na, *nb_out, *pixdims] batch but keeps the body traced once, so warmup is
+    # flat in na and Inductor fuses across the whole aperture.
+    stacked_r, stacked_i = torch.vmap(das_b)((iqr, iqi, tA))
     stacked_r = stacked_r * apoA
     stacked_i = stacked_i * apoA
     Ac = A.to(device=stacked_r.device, dtype=stacked_r.dtype)
