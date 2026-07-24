@@ -15,10 +15,16 @@ This is the official implementation of the paper "Differentiable Beamforming for
 
 [![dbua_video](https://img.youtube.com/vi/cUoAsEA5snE/0.jpg)](https://www.youtube.com/watch?v=cUoAsEA5snE)
 
-> **This fork adds a PyTorch port and migrates dependency management to [uv](https://docs.astral.sh/uv/).**
+> **This fork refactors the original code to PyTorch and migrates dependency management to [uv](https://docs.astral.sh/uv/).**
 > The original **JAX** reference implementation lives in `JaxDbua/`, and a numerically
 > faithful **PyTorch** port lives in `TorchDbua/`. The two mirror each other file-for-file
 > (`dbua.py`, `das.py`, `paths.py`, `losses.py`), so you can run either backend.
+>
+> Equivalence between the two backends is validated side by side and reported in the
+> [`comparison/`](comparison/) directory:
+> [`mae_table.txt`](comparison/mae_table.txt) (sound-speed MAE ± SE per phantom) and
+> [`losses_table.txt`](comparison/losses_table.txt) (per-loss values with the JAX↔PyTorch
+> `|diff|`). The columns agree within error bars, and losses match to ~1e-3 or better.
 
 ## High-Level Overview
 
